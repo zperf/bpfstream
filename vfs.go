@@ -2,15 +2,18 @@ package main
 
 import (
 	"context"
+	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/minio/simdjson-go"
-	"github.com/negrel/assert"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v3"
 )
 
@@ -30,6 +33,15 @@ var vfsCountCmd = &cli.Command{
 			Aliases: []string{"i"},
 			Value:   "-",
 		},
+		&cli.StringFlag{
+			Name:  "format",
+			Value: "table",
+			Usage: "output format: table, json, csv",
+		},
+		&cli.BoolFlag{
+			Name:  "live",
+			Usage: "live mode: print each interval as it arrives",
+		},
 	},
 	Action: func(ctx context.Context, command *cli.Command) error {
 		var r io.Reader
@@ -45,7 +57,20 @@ var vfsCountCmd = &cli.Command{
 			r = f
 		}
 
+		format := command.String("format")
+		live := command.Bool("live")
+
+		// Validate format
+		switch format {
+		case "table", "json", "csv":
+			// valid
+		default:
+			return errors.Errorf("invalid format: %s (must be table, json, or csv)", format)
+		}
+
 		var startTime time.Time
+		var totalEvent Event
+		var intervalCount int
 
 		reuse := make(chan *simdjson.ParsedJson, 10)
 		res := make(chan simdjson.Stream, 10)
@@ -63,35 +88,63 @@ var vfsCountCmd = &cli.Command{
 			err = got.Value.ForEach(func(iter simdjson.Iter) error {
 				var typeEl, dataEl *simdjson.Element
 				typeEl, err = iter.FindElement(typeEl, "type")
-				assert.NoError(err)
+				if err != nil {
+					return errors.Wrap(err, "failed to find 'type' element")
+				}
 				typeStr, err := typeEl.Iter.String()
-				assert.NoError(err)
+				if err != nil {
+					return errors.Wrap(err, "failed to get 'type' as string")
+				}
 				dataEl, err = iter.FindElement(dataEl, "data")
-				assert.NoError(err)
+				if err != nil {
+					return errors.Wrap(err, "failed to find 'data' element")
+				}
 
 				switch typeStr {
 				case "attached_probes":
 					var probesEl *simdjson.Element
 					probesEl, err = dataEl.Iter.FindElement(probesEl, "probes")
-					assert.NoError(err)
+					if err != nil {
+						return errors.Wrap(err, "failed to find 'probes' element")
+					}
 					probes, err := probesEl.Iter.Int()
-					assert.NoError(err)
+					if err != nil {
+						return errors.Wrap(err, "failed to get 'probes' as int")
+					}
 					if probes <= 0 {
 						return errors.New("probes not attached")
 					}
 
 				case "time":
-					assert.True(startTime.IsZero())
+					if !startTime.IsZero() {
+						log.Warn().Msg("Received multiple 'time' messages, ignoring")
+						return nil
+					}
 					timeStr, err := dataEl.Iter.String()
-					assert.NoError(err)
+					if err != nil {
+						return errors.Wrap(err, "failed to get 'time' data as string")
+					}
 					timeStr = strings.TrimSpace(timeStr)
 					startTime, err = time.Parse(time.TimeOnly, timeStr)
-					assert.NoError(err)
+					if err != nil {
+						return errors.Wrap(err, "failed to parse time")
+					}
+					log.Info().Str("start_time", startTime.Format(time.TimeOnly)).Msg("Record start from")
 
 				case "map":
 					var event Event
-					event.Fill(dataEl)
-					fmt.Printf("%+v\n", event)
+					if err := event.Fill(dataEl); err != nil {
+						return errors.Wrap(err, "failed to fill event from map data")
+					}
+					intervalCount++
+					totalEvent.Add(&event)
+
+					if live {
+						printEvent(&event, format, intervalCount)
+					}
+
+				default:
+					log.Warn().Str("type", typeStr).Msg("Unknown message type, skipping")
 				}
 
 				return nil
@@ -103,35 +156,118 @@ var vfsCountCmd = &cli.Command{
 			reuse <- got.Value
 		}
 
+		// Print summary
+		if !live {
+			printEvent(&totalEvent, format, intervalCount)
+		} else if intervalCount > 1 {
+			// In live mode, print total at the end if there were multiple intervals
+			fmt.Println("\n--- Total ---")
+			printEvent(&totalEvent, format, intervalCount)
+		}
+
 		return nil
 	},
 }
 
-type Event struct {
-	Create   int64
-	Open     int64
-	Read     int64
-	ReadLink int64
-	ReadV    int64
-	Write    int64
-	WriteV   int64
-	FSync    int64
+func printEvent(e *Event, format string, intervalCount int) {
+	switch format {
+	case "json":
+		output := struct {
+			Event
+			Intervals int   `json:"intervals"`
+			Total     int64 `json:"total"`
+		}{
+			Event:     *e,
+			Intervals: intervalCount,
+			Total:     e.Total(),
+		}
+		data, _ := json.Marshal(output)
+		fmt.Println(string(data))
+
+	case "csv":
+		w := csv.NewWriter(os.Stdout)
+		_ = w.Write([]string{"Operation", "Count"})
+		_ = w.Write([]string{"create", fmt.Sprintf("%d", e.Create)})
+		_ = w.Write([]string{"open", fmt.Sprintf("%d", e.Open)})
+		_ = w.Write([]string{"read", fmt.Sprintf("%d", e.Read)})
+		_ = w.Write([]string{"readlink", fmt.Sprintf("%d", e.ReadLink)})
+		_ = w.Write([]string{"readv", fmt.Sprintf("%d", e.ReadV)})
+		_ = w.Write([]string{"write", fmt.Sprintf("%d", e.Write)})
+		_ = w.Write([]string{"writev", fmt.Sprintf("%d", e.WriteV)})
+		_ = w.Write([]string{"fsync", fmt.Sprintf("%d", e.FSync)})
+		_ = w.Write([]string{"total", fmt.Sprintf("%d", e.Total())})
+		w.Flush()
+
+	default: // table
+		tw := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		fmt.Fprintln(tw, "Operation\tCount")
+		fmt.Fprintln(tw, "---------\t-----")
+		fmt.Fprintf(tw, "create\t%d\n", e.Create)
+		fmt.Fprintf(tw, "open\t%d\n", e.Open)
+		fmt.Fprintf(tw, "read\t%d\n", e.Read)
+		fmt.Fprintf(tw, "readlink\t%d\n", e.ReadLink)
+		fmt.Fprintf(tw, "readv\t%d\n", e.ReadV)
+		fmt.Fprintf(tw, "write\t%d\n", e.Write)
+		fmt.Fprintf(tw, "writev\t%d\n", e.WriteV)
+		fmt.Fprintf(tw, "fsync\t%d\n", e.FSync)
+		fmt.Fprintln(tw, "---------\t-----")
+		fmt.Fprintf(tw, "Total\t%d\n", e.Total())
+		fmt.Fprintf(tw, "Intervals\t%d\n", intervalCount)
+		_ = tw.Flush()
+	}
 }
 
-func (e *Event) Fill(el *simdjson.Element) {
+type Event struct {
+	Create   int64 `json:"create"`
+	Open     int64 `json:"open"`
+	Read     int64 `json:"read"`
+	ReadLink int64 `json:"readlink"`
+	ReadV    int64 `json:"readv"`
+	Write    int64 `json:"write"`
+	WriteV   int64 `json:"writev"`
+	FSync    int64 `json:"fsync"`
+}
+
+// Add accumulates counts from another Event
+func (e *Event) Add(other *Event) {
+	e.Create += other.Create
+	e.Open += other.Open
+	e.Read += other.Read
+	e.ReadLink += other.ReadLink
+	e.ReadV += other.ReadV
+	e.Write += other.Write
+	e.WriteV += other.WriteV
+	e.FSync += other.FSync
+}
+
+// Total returns the sum of all operation counts
+func (e *Event) Total() int64 {
+	return e.Create + e.Open + e.Read + e.ReadLink + e.ReadV + e.Write + e.WriteV + e.FSync
+}
+
+func (e *Event) Fill(el *simdjson.Element) error {
 	var err error
 	var rootEl *simdjson.Element
 	rootEl, err = el.Iter.FindElement(rootEl, "@")
-	assert.NoError(err)
+	if err != nil {
+		return errors.Wrap(err, "failed to find '@' element")
+	}
 	var obj *simdjson.Object
 	obj, err = rootEl.Iter.Object(obj)
-	assert.NoError(err)
+	if err != nil {
+		return errors.Wrap(err, "failed to get object from '@' element")
+	}
 	elements, err := obj.Parse(nil)
-	assert.NoError(err)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse object elements")
+	}
 	for _, m := range elements.Elements {
 		var value int64
 		value, err = m.Iter.Int()
-		assert.NoError(err)
+		if err != nil {
+			log.Warn().Str("field", m.Name).Err(err).Msg("Failed to parse field as int, skipping")
+			continue
+		}
 		switch m.Name {
 		case "vfs_create":
 			e.Create = value
@@ -149,6 +285,9 @@ func (e *Event) Fill(el *simdjson.Element) {
 			e.WriteV = value
 		case "vfs_fsync":
 			e.FSync = value
+		default:
+			log.Debug().Str("field", m.Name).Int64("value", value).Msg("Unknown field in map data")
 		}
 	}
+	return nil
 }

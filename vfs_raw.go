@@ -14,7 +14,6 @@ import (
 	"github.com/kr/logfmt"
 	"github.com/marcboeker/go-duckdb/v2"
 	"github.com/minio/simdjson-go"
-	"github.com/negrel/assert"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v3"
@@ -123,7 +122,7 @@ func simpleParseThenAppend(r io.Reader, appendRow appendRowFn) error {
 			}
 			log.Info().Uint64("lost_events", lostEvents).Msg("Lost events")
 		} else {
-			panic("unreachable")
+			log.Warn().Str("line", line).Msg("Unknown line format, skipping")
 		}
 	}
 
@@ -149,53 +148,83 @@ func jsonParseThenAppend(r io.Reader, appendRow appendRowFn) error {
 		err = got.Value.ForEach(func(iter simdjson.Iter) error {
 			var typeEl, dataEl *simdjson.Element
 			typeEl, err = iter.FindElement(typeEl, "type")
-			assert.NoError(err)
+			if err != nil {
+				return errors.Wrap(err, "failed to find 'type' element")
+			}
 			var typeStr string
 			typeStr, err = typeEl.Iter.String()
-			assert.NoError(err)
+			if err != nil {
+				return errors.Wrap(err, "failed to get 'type' as string")
+			}
 			dataEl, err = iter.FindElement(dataEl, "data")
-			assert.NoError(err)
+			if err != nil {
+				return errors.Wrap(err, "failed to find 'data' element")
+			}
 
 			switch typeStr {
 			case "attached_probes":
 				var probesEl *simdjson.Element
 				probesEl, err = dataEl.Iter.FindElement(probesEl, "probes")
-				assert.NoError(err)
+				if err != nil {
+					return errors.Wrap(err, "failed to find 'probes' element")
+				}
 				var probes int64
 				probes, err = probesEl.Iter.Int()
-				assert.NoError(err)
+				if err != nil {
+					return errors.Wrap(err, "failed to get 'probes' as int")
+				}
 				if probes <= 0 {
 					return errors.New("probes not attached")
 				}
 
 			case "time":
 				var timeStr string
-				assert.True(startTime.IsZero())
+				if !startTime.IsZero() {
+					log.Warn().Msg("Received multiple 'time' messages, ignoring")
+					return nil
+				}
 				timeStr, err = dataEl.Iter.String()
-				assert.NoError(err)
+				if err != nil {
+					return errors.Wrap(err, "failed to get 'time' data as string")
+				}
 				timeStr = strings.TrimSpace(timeStr)
 				startTime, err = time.Parse(time.TimeOnly, timeStr)
-				assert.NoError(err)
+				if err != nil {
+					return errors.Wrap(err, "failed to parse time")
+				}
 				log.Info().Str("start_time", startTime.Format(time.TimeOnly)).Msg("Record start from")
 
 			case "lost_events":
 				var eventCountEl *simdjson.Element
 				eventCountEl, err = dataEl.Iter.FindElement(eventCountEl, "events")
-				assert.NoError(err)
+				if err != nil {
+					return errors.Wrap(err, "failed to find 'events' element")
+				}
 				var lostEvents int64
 				lostEvents, err = eventCountEl.Iter.Int()
-				assert.NoError(err)
+				if err != nil {
+					return errors.Wrap(err, "failed to get 'events' as int")
+				}
 				log.Info().Int64("lost_events", lostEvents).Msg("Lost events")
 
 			case "printf":
 				var buf []byte
 				buf, err = dataEl.Iter.StringBytes()
-				assert.NoError(err)
+				if err != nil {
+					return errors.Wrap(err, "failed to get 'printf' data as string")
+				}
 				var e vfsEvent
 				err = logfmt.Unmarshal(buf, &e)
-				assert.NoError(err)
+				if err != nil {
+					return errors.Wrap(err, "failed to unmarshal logfmt data")
+				}
 				err = appendRow(&e)
-				assert.NoError(err)
+				if err != nil {
+					return errors.Wrap(err, "failed to append row")
+				}
+
+			default:
+				log.Warn().Str("type", typeStr).Msg("Unknown message type, skipping")
 			}
 
 			return nil
