@@ -12,9 +12,14 @@ import (
 )
 
 var rootCmd = &cli.Command{
-	Name: "bpfstream",
+	Name:  "bpfstream",
+	Usage: "BPF-based system tracing tool",
 	Commands: []*cli.Command{
 		vfsCmd,
+		netCmd,
+		procCmd,
+		memCmd,
+		syscallCmd,
 	},
 }
 
