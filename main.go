@@ -9,8 +9,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v3"
-
-	"github.com/fioepq9/pzlog"
 )
 
 var rootCmd = &cli.Command{
@@ -21,7 +19,7 @@ var rootCmd = &cli.Command{
 }
 
 func main() {
-	log.Logger = zerolog.New(pzlog.NewPtermWriter()).With().Timestamp().Caller().Stack().Logger()
+	log.Logger = zerolog.New(newPtermWriter()).With().Timestamp().Caller().Stack().Logger()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
