@@ -97,7 +97,7 @@ func BenchmarkSimpleParseWithWal(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
-	elapsed := time.Now().Sub(now)
+	elapsed := time.Since(now)
 	log.Info().
 		Int("n", b.N).
 		Int64("elapsed_ns", elapsed.Nanoseconds()).
@@ -171,7 +171,7 @@ func BenchmarkSimpleParseWithFile(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
-	elapsed := time.Now().Sub(now)
+	elapsed := time.Since(now)
 	log.Info().
 		Int("n", b.N).
 		Int64("elapsed_ns", elapsed.Nanoseconds()).
@@ -199,7 +199,7 @@ func BenchmarkSimpleParseWithLevels(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
-	elapsed := time.Now().Sub(now)
+	elapsed := time.Since(now)
 	log.Info().
 		Int("n", b.N).
 		Int64("elapsed_ns", elapsed.Nanoseconds()).
@@ -226,7 +226,7 @@ func BenchmarkSimpleParseOnly(b *testing.B) {
 		}
 	}
 
-	elapsed := time.Now().Sub(now)
+	elapsed := time.Since(now)
 	log.Info().
 		Int("n", b.N).
 		Int64("elapsed_ns", elapsed.Nanoseconds()).
@@ -252,7 +252,7 @@ func BenchmarkJsonParseOnly(b *testing.B) {
 		}
 	}
 
-	elapsed := time.Now().Sub(now)
+	elapsed := time.Since(now)
 	log.Info().
 		Int("n", b.N).
 		Int64("elapsed_ns", elapsed.Nanoseconds()).
@@ -319,7 +319,7 @@ func BenchmarkReadMemoryWriteDuckDB(b *testing.B) {
 		_ = appender.Flush()
 	}
 
-	elapsed := time.Now().Sub(now)
+	elapsed := time.Since(now)
 	log.Info().
 		Int("n", b.N).
 		Int64("elapsed_ns", elapsed.Nanoseconds()).
@@ -387,7 +387,7 @@ func BenchmarkImportFromBpf(b *testing.B) {
 		_ = r.Close()
 	}
 
-	elapsed := time.Now().Sub(now)
+	elapsed := time.Since(now)
 	log.Info().
 		Int("n", b.N).
 		Int64("elapsed_ns", elapsed.Nanoseconds()).

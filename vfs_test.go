@@ -97,34 +97,14 @@ func TestEventTotal(t *testing.T) {
 
 // TestEventFill tests the Event.Fill() method with valid JSON data
 func TestEventFill(t *testing.T) {
-	testJSON := `{"@": {"vfs_create": 10, "vfs_open": 20, "vfs_read": 30, "vfs_readlink": 5, "vfs_readv": 3, "vfs_write": 15, "vfs_writev": 7, "vfs_fsync": 2}}`
-
-	pj, err := simdjson.Parse([]byte(testJSON), nil)
-	if err != nil {
-		t.Fatalf("failed to parse JSON: %v", err)
-	}
-
-	iter := pj.Iter()
-	iter.AdvanceInto()
-
-	var el *simdjson.Element
-	el, err = iter.FindElement(el, "@")
-	if err != nil {
-		// The element is the root object itself, we need to reparse
-		pj, err = simdjson.Parse([]byte(testJSON), nil)
-		if err != nil {
-			t.Fatalf("failed to parse JSON: %v", err)
-		}
-	}
-
 	// Create a wrapper structure similar to what vfs count receives
 	wrapperJSON := `{"data": {"@": {"vfs_create": 10, "vfs_open": 20, "vfs_read": 30, "vfs_readlink": 5, "vfs_readv": 3, "vfs_write": 15, "vfs_writev": 7, "vfs_fsync": 2}}}`
-	pj, err = simdjson.Parse([]byte(wrapperJSON), nil)
+	pj, err := simdjson.Parse([]byte(wrapperJSON), nil)
 	if err != nil {
 		t.Fatalf("failed to parse wrapper JSON: %v", err)
 	}
 
-	iter = pj.Iter()
+	iter := pj.Iter()
 	iter.AdvanceInto()
 
 	var dataEl *simdjson.Element
@@ -217,11 +197,11 @@ func TestPrintEventTable(t *testing.T) {
 
 	printEvent(&event, "table", 5)
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	output := buf.String()
 
 	// Verify key elements are present
@@ -260,11 +240,11 @@ func TestPrintEventJSON(t *testing.T) {
 
 	printEvent(&event, "json", 5)
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	output := strings.TrimSpace(buf.String())
 
 	// Parse the JSON output
@@ -313,11 +293,11 @@ func TestPrintEventCSV(t *testing.T) {
 
 	printEvent(&event, "csv", 5)
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	output := buf.String()
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 
