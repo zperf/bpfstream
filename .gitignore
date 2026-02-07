@@ -5,3 +5,4 @@
 bpfstream
 *.ddb
 *.ddb.wal
+coverage.out
