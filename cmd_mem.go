@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"text/tabwriter"
 
 	"github.com/kr/logfmt"
@@ -220,6 +221,12 @@ type memRawEvent struct {
 	Type      string
 }
 
+var memRawEventPool = sync.Pool{
+	New: func() any {
+		return &memRawEvent{}
+	},
+}
+
 var ErrUnknownMemField = errors.New("unknown mem field")
 
 func (e *memRawEvent) HandleLogfmt(key []byte, val []byte) (err error) {
@@ -271,12 +278,16 @@ func memJSONParseThenAppend(r io.Reader, appendRow memAppendRowFn) error {
 			if err != nil {
 				return errors.Wrap(err, "failed to get 'printf' data as string")
 			}
-			var e memRawEvent
-			err = logfmt.Unmarshal(buf, &e)
+			e := memRawEventPool.Get().(*memRawEvent)
+			*e = memRawEvent{}
+			err = logfmt.Unmarshal(buf, e)
 			if err != nil {
+				memRawEventPool.Put(e)
 				return errors.Wrap(err, "failed to unmarshal logfmt data")
 			}
-			return appendRow(&e)
+			err = appendRow(e)
+			memRawEventPool.Put(e)
+			return err
 		default:
 			log.Warn().Str("type", msgType).Msg("Unknown message type, skipping")
 		}

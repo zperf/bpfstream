@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"text/tabwriter"
 
 	"github.com/kr/logfmt"
@@ -220,6 +221,12 @@ type procRawEvent struct {
 	ExitCode  int64
 }
 
+var procRawEventPool = sync.Pool{
+	New: func() any {
+		return &procRawEvent{}
+	},
+}
+
 var ErrUnknownProcField = errors.New("unknown proc field")
 
 func (e *procRawEvent) HandleLogfmt(key []byte, val []byte) (err error) {
@@ -271,12 +278,16 @@ func procJSONParseThenAppend(r io.Reader, appendRow procAppendRowFn) error {
 			if err != nil {
 				return errors.Wrap(err, "failed to get 'printf' data as string")
 			}
-			var e procRawEvent
-			err = logfmt.Unmarshal(buf, &e)
+			e := procRawEventPool.Get().(*procRawEvent)
+			*e = procRawEvent{}
+			err = logfmt.Unmarshal(buf, e)
 			if err != nil {
+				procRawEventPool.Put(e)
 				return errors.Wrap(err, "failed to unmarshal logfmt data")
 			}
-			return appendRow(&e)
+			err = appendRow(e)
+			procRawEventPool.Put(e)
+			return err
 		default:
 			log.Warn().Str("type", msgType).Msg("Unknown message type, skipping")
 		}

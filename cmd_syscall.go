@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"text/tabwriter"
 
 	"github.com/kr/logfmt"
@@ -230,6 +231,12 @@ type syscallRawEvent struct {
 	ReturnValue int64
 }
 
+var syscallRawEventPool = sync.Pool{
+	New: func() any {
+		return &syscallRawEvent{}
+	},
+}
+
 var ErrUnknownSyscallField = errors.New("unknown syscall field")
 
 func (e *syscallRawEvent) HandleLogfmt(key []byte, val []byte) (err error) {
@@ -296,12 +303,16 @@ func syscallJSONParseThenAppend(r io.Reader, appendRow syscallAppendRowFn) error
 			if err != nil {
 				return errors.Wrap(err, "failed to get 'printf' data as string")
 			}
-			var e syscallRawEvent
-			err = logfmt.Unmarshal(buf, &e)
+			e := syscallRawEventPool.Get().(*syscallRawEvent)
+			*e = syscallRawEvent{}
+			err = logfmt.Unmarshal(buf, e)
 			if err != nil {
+				syscallRawEventPool.Put(e)
 				return errors.Wrap(err, "failed to unmarshal logfmt data")
 			}
-			return appendRow(&e)
+			err = appendRow(e)
+			syscallRawEventPool.Put(e)
+			return err
 		default:
 			log.Warn().Str("type", msgType).Msg("Unknown message type, skipping")
 		}
