@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"text/tabwriter"
 
 	"github.com/kr/logfmt"
@@ -240,6 +241,12 @@ type netRawEvent struct {
 	Protocol  string
 }
 
+var netRawEventPool = sync.Pool{
+	New: func() any {
+		return &netRawEvent{}
+	},
+}
+
 var ErrUnknownNetField = errors.New("unknown net field")
 
 func (e *netRawEvent) HandleLogfmt(key []byte, val []byte) (err error) {
@@ -301,12 +308,16 @@ func netJSONParseThenAppend(r io.Reader, appendRow netAppendRowFn) error {
 			if err != nil {
 				return errors.Wrap(err, "failed to get 'printf' data as string")
 			}
-			var e netRawEvent
-			err = logfmt.Unmarshal(buf, &e)
+			e := netRawEventPool.Get().(*netRawEvent)
+			*e = netRawEvent{}
+			err = logfmt.Unmarshal(buf, e)
 			if err != nil {
+				netRawEventPool.Put(e)
 				return errors.Wrap(err, "failed to unmarshal logfmt data")
 			}
-			return appendRow(&e)
+			err = appendRow(e)
+			netRawEventPool.Put(e)
+			return err
 		default:
 			log.Warn().Str("type", msgType).Msg("Unknown message type, skipping")
 		}

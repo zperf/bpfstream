@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/kr/logfmt"
@@ -40,6 +41,12 @@ type vfsEvent struct {
 	Inode       uint64
 	Offset      uint64
 	Length      uint64
+}
+
+var vfsEventPool = sync.Pool{
+	New: func() any {
+		return &vfsEvent{}
+	},
 }
 
 var ErrUnknownField = errors.New("unknown field")
@@ -104,12 +111,15 @@ func simpleParseThenAppend(r io.Reader, appendRow appendRowFn) error {
 			p := len(printfKeyword)
 			data := line[p : len(line)-len(`"}`)]
 			_ = data
-			var e vfsEvent
-			err := logfmt.Unmarshal([]byte(data), &e)
+			e := vfsEventPool.Get().(*vfsEvent)
+			*e = vfsEvent{}
+			err := logfmt.Unmarshal([]byte(data), e)
 			if err != nil {
+				vfsEventPool.Put(e)
 				return err
 			}
-			err = appendRow(&e)
+			err = appendRow(e)
+			vfsEventPool.Put(e)
 			if err != nil {
 				return err
 			}
@@ -213,12 +223,15 @@ func jsonParseThenAppend(r io.Reader, appendRow appendRowFn) error {
 				if err != nil {
 					return errors.Wrap(err, "failed to get 'printf' data as string")
 				}
-				var e vfsEvent
-				err = logfmt.Unmarshal(buf, &e)
+				e := vfsEventPool.Get().(*vfsEvent)
+				*e = vfsEvent{}
+				err = logfmt.Unmarshal(buf, e)
 				if err != nil {
+					vfsEventPool.Put(e)
 					return errors.Wrap(err, "failed to unmarshal logfmt data")
 				}
-				err = appendRow(&e)
+				err = appendRow(e)
+				vfsEventPool.Put(e)
 				if err != nil {
 					return errors.Wrap(err, "failed to append row")
 				}
