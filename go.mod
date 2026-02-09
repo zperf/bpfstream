@@ -8,7 +8,7 @@ require (
 	github.com/marcboeker/go-duckdb/v2 v2.3.2
 	github.com/minio/simdjson-go v0.4.5
 	github.com/negrel/assert v0.5.0
-	github.com/pkg/errors v0.9.1
+	github.com/pierrec/lz4/v4 v4.1.22
 	github.com/pterm/pterm v0.12.61
 	github.com/rs/zerolog v1.34.0
 	github.com/urfave/cli/v3 v3.3.8

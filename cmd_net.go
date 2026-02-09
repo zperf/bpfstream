@@ -16,7 +16,6 @@ import (
 	"github.com/kr/logfmt"
 	"github.com/marcboeker/go-duckdb/v2"
 	"github.com/minio/simdjson-go"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v3"
 )
@@ -63,16 +62,16 @@ func (e *NetCountEvent) Fill(el *simdjson.Element) error {
 	var rootEl *simdjson.Element
 	rootEl, err = el.Iter.FindElement(rootEl, "@")
 	if err != nil {
-		return errors.Wrap(err, "failed to find '@' element")
+		return fmt.Errorf("failed to find '@' element: %w", err)
 	}
 	var obj *simdjson.Object
 	obj, err = rootEl.Iter.Object(obj)
 	if err != nil {
-		return errors.Wrap(err, "failed to get object from '@' element")
+		return fmt.Errorf("failed to get object from '@' element: %w", err)
 	}
 	elements, err := obj.Parse(nil)
 	if err != nil {
-		return errors.Wrap(err, "failed to parse object elements")
+		return fmt.Errorf("failed to parse object elements: %w", err)
 	}
 	for _, m := range elements.Elements {
 		var value int64
@@ -177,7 +176,7 @@ var netCountCmd = &cli.Command{
 		} else {
 			f, err := os.Open(input)
 			if err != nil {
-				return errors.Wrap(err, "open input")
+				return fmt.Errorf("open input: %w", err)
 			}
 			defer func() { _ = f.Close() }()
 			r = f
@@ -199,7 +198,7 @@ var netCountCmd = &cli.Command{
 			case "map":
 				var event NetCountEvent
 				if err := event.Fill(data); err != nil {
-					return errors.Wrap(err, "failed to fill event from map data")
+					return fmt.Errorf("failed to fill event from map data: %w", err)
 				}
 				intervalCount++
 				totalEvent.Add(&event)
@@ -306,14 +305,14 @@ func netJSONParseThenAppend(r io.Reader, appendRow netAppendRowFn) error {
 		case "printf":
 			buf, err := data.Iter.StringBytes()
 			if err != nil {
-				return errors.Wrap(err, "failed to get 'printf' data as string")
+				return fmt.Errorf("failed to get 'printf' data as string: %w", err)
 			}
 			e := netRawEventPool.Get().(*netRawEvent)
 			*e = netRawEvent{}
 			err = logfmt.Unmarshal(buf, e)
 			if err != nil {
 				netRawEventPool.Put(e)
-				return errors.Wrap(err, "failed to unmarshal logfmt data")
+				return fmt.Errorf("failed to unmarshal logfmt data: %w", err)
 			}
 			err = appendRow(e)
 			netRawEventPool.Put(e)
@@ -386,7 +385,7 @@ var netRawCmd = &cli.Command{
 		} else {
 			f, err := os.Open(input)
 			if err != nil {
-				return errors.Wrap(err, "open input")
+				return fmt.Errorf("open input: %w", err)
 			}
 			defer func() { _ = f.Close() }()
 			r = f

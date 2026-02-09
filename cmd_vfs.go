@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/minio/simdjson-go"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v3"
 )
@@ -51,7 +50,7 @@ var vfsCountCmd = &cli.Command{
 		} else {
 			f, err := os.Open(input)
 			if err != nil {
-				return errors.Wrap(err, "open input")
+				return fmt.Errorf("open input: %w", err)
 			}
 			defer func() { _ = f.Close() }()
 			r = f
@@ -65,7 +64,7 @@ var vfsCountCmd = &cli.Command{
 		case "table", "json", "csv":
 			// valid
 		default:
-			return errors.Errorf("invalid format: %s (must be table, json, or csv)", format)
+			return fmt.Errorf("invalid format: %s (must be table, json, or csv)", format)
 		}
 
 		var startTime time.Time
@@ -89,15 +88,15 @@ var vfsCountCmd = &cli.Command{
 				var typeEl, dataEl *simdjson.Element
 				typeEl, err = iter.FindElement(typeEl, "type")
 				if err != nil {
-					return errors.Wrap(err, "failed to find 'type' element")
+					return fmt.Errorf("failed to find 'type' element: %w", err)
 				}
 				typeStr, err := typeEl.Iter.String()
 				if err != nil {
-					return errors.Wrap(err, "failed to get 'type' as string")
+					return fmt.Errorf("failed to get 'type' as string: %w", err)
 				}
 				dataEl, err = iter.FindElement(dataEl, "data")
 				if err != nil {
-					return errors.Wrap(err, "failed to find 'data' element")
+					return fmt.Errorf("failed to find 'data' element: %w", err)
 				}
 
 				switch typeStr {
@@ -105,11 +104,11 @@ var vfsCountCmd = &cli.Command{
 					var probesEl *simdjson.Element
 					probesEl, err = dataEl.Iter.FindElement(probesEl, "probes")
 					if err != nil {
-						return errors.Wrap(err, "failed to find 'probes' element")
+						return fmt.Errorf("failed to find 'probes' element: %w", err)
 					}
 					probes, err := probesEl.Iter.Int()
 					if err != nil {
-						return errors.Wrap(err, "failed to get 'probes' as int")
+						return fmt.Errorf("failed to get 'probes' as int: %w", err)
 					}
 					if probes <= 0 {
 						return errors.New("probes not attached")
@@ -122,19 +121,19 @@ var vfsCountCmd = &cli.Command{
 					}
 					timeStr, err := dataEl.Iter.String()
 					if err != nil {
-						return errors.Wrap(err, "failed to get 'time' data as string")
+						return fmt.Errorf("failed to get 'time' data as string: %w", err)
 					}
 					timeStr = strings.TrimSpace(timeStr)
 					startTime, err = time.Parse(time.TimeOnly, timeStr)
 					if err != nil {
-						return errors.Wrap(err, "failed to parse time")
+						return fmt.Errorf("failed to parse time: %w", err)
 					}
 					log.Info().Str("start_time", startTime.Format(time.TimeOnly)).Msg("Record start from")
 
 				case "map":
 					var event Event
 					if err := event.Fill(dataEl); err != nil {
-						return errors.Wrap(err, "failed to fill event from map data")
+						return fmt.Errorf("failed to fill event from map data: %w", err)
 					}
 					intervalCount++
 					totalEvent.Add(&event)
@@ -250,16 +249,16 @@ func (e *Event) Fill(el *simdjson.Element) error {
 	var rootEl *simdjson.Element
 	rootEl, err = el.Iter.FindElement(rootEl, "@")
 	if err != nil {
-		return errors.Wrap(err, "failed to find '@' element")
+		return fmt.Errorf("failed to find '@' element: %w", err)
 	}
 	var obj *simdjson.Object
 	obj, err = rootEl.Iter.Object(obj)
 	if err != nil {
-		return errors.Wrap(err, "failed to get object from '@' element")
+		return fmt.Errorf("failed to get object from '@' element: %w", err)
 	}
 	elements, err := obj.Parse(nil)
 	if err != nil {
-		return errors.Wrap(err, "failed to parse object elements")
+		return fmt.Errorf("failed to parse object elements: %w", err)
 	}
 	for _, m := range elements.Elements {
 		var value int64

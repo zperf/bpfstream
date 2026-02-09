@@ -2,13 +2,14 @@ package main
 
 import (
 	"bufio"
+	"errors"
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/minio/simdjson-go"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -44,15 +45,15 @@ func (p *NDJSONParser) ParseStream(r io.Reader, handler MessageHandler) error {
 
 			typeEl, err = iter.FindElement(typeEl, "type")
 			if err != nil {
-				return errors.Wrap(err, "failed to find 'type' element")
+				return fmt.Errorf("failed to find 'type' element: %w", err)
 			}
 			typeStr, err := typeEl.Iter.String()
 			if err != nil {
-				return errors.Wrap(err, "failed to get 'type' as string")
+				return fmt.Errorf("failed to get 'type' as string: %w", err)
 			}
 			dataEl, err = iter.FindElement(dataEl, "data")
 			if err != nil {
-				return errors.Wrap(err, "failed to find 'data' element")
+				return fmt.Errorf("failed to find 'data' element: %w", err)
 			}
 
 			// Handle common message types
@@ -83,11 +84,11 @@ func (p *NDJSONParser) handleAttachedProbes(dataEl *simdjson.Element) error {
 	var err error
 	probesEl, err = dataEl.Iter.FindElement(probesEl, "probes")
 	if err != nil {
-		return errors.Wrap(err, "failed to find 'probes' element")
+		return fmt.Errorf("failed to find 'probes' element: %w", err)
 	}
 	probes, err := probesEl.Iter.Int()
 	if err != nil {
-		return errors.Wrap(err, "failed to get 'probes' as int")
+		return fmt.Errorf("failed to get 'probes' as int: %w", err)
 	}
 	if probes <= 0 {
 		return errors.New("probes not attached")
@@ -103,12 +104,12 @@ func (p *NDJSONParser) handleTime(dataEl *simdjson.Element) error {
 	}
 	timeStr, err := dataEl.Iter.String()
 	if err != nil {
-		return errors.Wrap(err, "failed to get 'time' data as string")
+		return fmt.Errorf("failed to get 'time' data as string: %w", err)
 	}
 	timeStr = strings.TrimSpace(timeStr)
 	p.StartTime, err = time.Parse(time.TimeOnly, timeStr)
 	if err != nil {
-		return errors.Wrap(err, "failed to parse time")
+		return fmt.Errorf("failed to parse time: %w", err)
 	}
 	log.Info().Str("start_time", p.StartTime.Format(time.TimeOnly)).Msg("Record start from")
 	return nil
@@ -119,11 +120,11 @@ func (p *NDJSONParser) handleLostEvents(dataEl *simdjson.Element) error {
 	var err error
 	eventCountEl, err = dataEl.Iter.FindElement(eventCountEl, "events")
 	if err != nil {
-		return errors.Wrap(err, "failed to find 'events' element")
+		return fmt.Errorf("failed to find 'events' element: %w", err)
 	}
 	lostEvents, err := eventCountEl.Iter.Int()
 	if err != nil {
-		return errors.Wrap(err, "failed to get 'events' as int")
+		return fmt.Errorf("failed to get 'events' as int: %w", err)
 	}
 	log.Info().Int64("lost_events", lostEvents).Msg("Lost events")
 	return nil
