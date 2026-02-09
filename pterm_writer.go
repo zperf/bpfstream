@@ -12,7 +12,6 @@ import (
 	"text/template"
 
 	"github.com/goccy/go-json"
-	"github.com/gookit/color"
 	"github.com/pterm/pterm"
 	"github.com/rs/zerolog"
 )
@@ -59,7 +58,7 @@ func newPtermWriter() *ptermWriter {
 		},
 		keyOrderFn: func(k1, k2 string) bool {
 			score := func(s string) string {
-				s = color.ClearCode(s)
+				s = pterm.RemoveColorFromString(s)
 				if s == zerolog.TimestampFieldName {
 					return string([]byte{0, 0})
 				}
@@ -89,7 +88,7 @@ func newPtermWriter() *ptermWriter {
 				return strings.Repeat(" ", n)
 			},
 			"totalLength": func(n int, s ...string) int {
-				return len(color.ClearCode(strings.Join(s, ""))) - n
+				return len(pterm.RemoveColorFromString(strings.Join(s, ""))) - n
 			},
 			"last": func(x int, a interface{}) bool {
 				return x == reflect.ValueOf(a).Len()-1
