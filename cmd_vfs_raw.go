@@ -300,9 +300,45 @@ var vfsRawCmd = &cli.Command{
 			r = f
 		}
 
-		return jsonParseThenAppend(r, func(e *vfsEvent) error {
-			return appender.AppendRow(e.Timestamp, e.Probe, e.Tid, e.ReturnValue,
-				e.Path, e.Inode, e.Offset, e.Length)
+		events := make(chan *vfsEvent, 1024)
+		writeErrCh := make(chan error, 1)
+		done := make(chan struct{})
+
+		go func() {
+			defer close(done)
+			for e := range events {
+				if err := appender.AppendRow(e.Timestamp, e.Probe, e.Tid, e.ReturnValue,
+					e.Path, e.Inode, e.Offset, e.Length); err != nil {
+					writeErrCh <- err
+					return
+				}
+			}
+		}()
+
+		parseErr := jsonParseThenAppend(r, func(e *vfsEvent) error {
+			select {
+			case events <- e:
+				return nil
+			case err := <-writeErrCh:
+				if err != nil {
+					return err
+				}
+				return errors.New("writer stopped")
+			}
 		})
+
+		close(events)
+		<-done
+
+		if parseErr != nil {
+			return parseErr
+		}
+
+		select {
+		case err := <-writeErrCh:
+			return err
+		default:
+			return nil
+		}
 	},
 }
