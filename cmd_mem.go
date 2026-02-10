@@ -226,7 +226,7 @@ var memRawEventPool = sync.Pool{
 	},
 }
 
-var ErrUnknownMemField = errors.New("unknown mem field")
+var ErrUnknownMemField = fmt.Errorf("unknown mem field")
 
 func (e *memRawEvent) HandleLogfmt(key []byte, val []byte) (err error) {
 	k := string(key)

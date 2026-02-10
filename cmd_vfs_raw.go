@@ -48,7 +48,7 @@ var vfsEventPool = sync.Pool{
 	},
 }
 
-var ErrUnknownField = errors.New("unknown field")
+var ErrUnknownField = fmt.Errorf("unknown field")
 
 func (e *vfsEvent) HandleLogfmt(key []byte, val []byte) (err error) {
 	k := string(key)
@@ -96,7 +96,7 @@ func simpleParseThenAppend(r io.Reader, appendRow appendRowFn) error {
 				return err
 			}
 			if probes <= 0 {
-				return errors.New("probes not attached")
+				return fmt.Errorf("probes not attached")
 			}
 		} else if strings.HasPrefix(line, startTimeKeyword) {
 			p := len(startTimeKeyword)
@@ -183,7 +183,7 @@ func jsonParseThenAppend(r io.Reader, appendRow appendRowFn) error {
 					return fmt.Errorf("failed to get 'probes' as int: %w", err)
 				}
 				if probes <= 0 {
-					return errors.New("probes not attached")
+					return fmt.Errorf("probes not attached")
 				}
 
 			case "time":

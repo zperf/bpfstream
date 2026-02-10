@@ -246,7 +246,7 @@ var netRawEventPool = sync.Pool{
 	},
 }
 
-var ErrUnknownNetField = errors.New("unknown net field")
+var ErrUnknownNetField = fmt.Errorf("unknown net field")
 
 func (e *netRawEvent) HandleLogfmt(key []byte, val []byte) (err error) {
 	k := string(key)

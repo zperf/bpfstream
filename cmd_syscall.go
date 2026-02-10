@@ -236,7 +236,7 @@ var syscallRawEventPool = sync.Pool{
 	},
 }
 
-var ErrUnknownSyscallField = errors.New("unknown syscall field")
+var ErrUnknownSyscallField = fmt.Errorf("unknown syscall field")
 
 func (e *syscallRawEvent) HandleLogfmt(key []byte, val []byte) (err error) {
 	k := string(key)

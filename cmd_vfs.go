@@ -111,7 +111,7 @@ var vfsCountCmd = &cli.Command{
 						return fmt.Errorf("failed to get 'probes' as int: %w", err)
 					}
 					if probes <= 0 {
-						return errors.New("probes not attached")
+						return fmt.Errorf("probes not attached")
 					}
 
 				case "time":

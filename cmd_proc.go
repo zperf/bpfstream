@@ -226,7 +226,7 @@ var procRawEventPool = sync.Pool{
 	},
 }
 
-var ErrUnknownProcField = errors.New("unknown proc field")
+var ErrUnknownProcField = fmt.Errorf("unknown proc field")
 
 func (e *procRawEvent) HandleLogfmt(key []byte, val []byte) (err error) {
 	k := string(key)
