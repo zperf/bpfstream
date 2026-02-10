@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -120,6 +121,13 @@ func TestSimpleParseInvalidTime(t *testing.T) {
 	}
 }
 
+func isErrorUnsupportedPlatform(err error) bool {
+	if err == nil {
+		return false
+	}
+	return err.Error() == "Unsupported platform"
+}
+
 // TestJsonParseValidData tests jsonParseThenAppend with valid input
 func TestJsonParseValidData(t *testing.T) {
 	r := strings.NewReader(vfsRawTestDataValid)
@@ -129,7 +137,10 @@ func TestJsonParseValidData(t *testing.T) {
 		events = append(events, e)
 		return nil
 	})
-
+	if isErrorUnsupportedPlatform(err) {
+		t.Skip()
+		return
+	}
 	if err != nil {
 		t.Fatalf("jsonParseThenAppend() error = %v", err)
 	}
@@ -157,7 +168,10 @@ func TestJsonParseUnknownType(t *testing.T) {
 		events = append(events, e)
 		return nil
 	})
-
+	if isErrorUnsupportedPlatform(err) {
+		t.Skip()
+		return
+	}
 	if err != nil {
 		t.Fatalf("jsonParseThenAppend() should not error on unknown type, got: %v", err)
 	}
@@ -206,7 +220,10 @@ func TestJsonParseProbesNotAttached(t *testing.T) {
 	err := jsonParseThenAppend(r, func(e *vfsEvent) error {
 		return nil
 	})
-
+	if isErrorUnsupportedPlatform(err) {
+		t.Skip()
+		return
+	}
 	if err == nil {
 		t.Error("expected error when probes not attached, got nil")
 	}
