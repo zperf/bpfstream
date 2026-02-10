@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/duckdb/duckdb-go/v2"
 	"github.com/kr/logfmt"
-	"github.com/marcboeker/go-duckdb/v2"
 	"github.com/minio/simdjson-go"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v3"
@@ -29,7 +29,7 @@ const createTableSql = `CREATE TABLE IF NOT EXISTS %s (
 	"Offset" UBIGINT,
 	Length UBIGINT)`
 
-const dropTableSql = `DROP TABLE IF EXISTS %s`
+const dropTableSql = `DROP TABLE IF EXISTS %S`
 
 type vfsEvent struct {
 	Timestamp   uint64

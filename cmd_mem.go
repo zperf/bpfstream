@@ -13,8 +13,8 @@ import (
 	"sync"
 	"text/tabwriter"
 
+	"github.com/duckdb/duckdb-go/v2"
 	"github.com/kr/logfmt"
-	"github.com/marcboeker/go-duckdb/v2"
 	"github.com/minio/simdjson-go"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v3"
@@ -264,7 +264,7 @@ const createMemTableSQL = `CREATE TABLE IF NOT EXISTS %s (
 	Size UBIGINT,
 	Type STRING)`
 
-const dropMemTableSQL = `DROP TABLE IF EXISTS %s`
+const dropMemTableSQL = `DROP TABLE IF EXISTS %S`
 
 type memAppendRowFn = func(e *memRawEvent) error
 

@@ -14,8 +14,8 @@ import (
 	"sync"
 	"text/tabwriter"
 
+	"github.com/duckdb/duckdb-go/v2"
 	"github.com/kr/logfmt"
-	"github.com/marcboeker/go-duckdb/v2"
 	"github.com/minio/simdjson-go"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v3"
@@ -289,7 +289,7 @@ const createSyscallTableSQL = `CREATE TABLE IF NOT EXISTS %s (
 	Arg5 UBIGINT,
 	ReturnValue BIGINT)`
 
-const dropSyscallTableSQL = `DROP TABLE IF EXISTS %s`
+const dropSyscallTableSQL = `DROP TABLE IF EXISTS %S`
 
 type syscallAppendRowFn = func(e *syscallRawEvent) error
 

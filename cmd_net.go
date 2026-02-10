@@ -13,8 +13,8 @@ import (
 	"sync"
 	"text/tabwriter"
 
+	"github.com/duckdb/duckdb-go/v2"
 	"github.com/kr/logfmt"
-	"github.com/marcboeker/go-duckdb/v2"
 	"github.com/minio/simdjson-go"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v3"
@@ -294,7 +294,7 @@ const createNetTableSQL = `CREATE TABLE IF NOT EXISTS %s (
 	Bytes UBIGINT,
 	Protocol STRING)`
 
-const dropNetTableSQL = `DROP TABLE IF EXISTS %s`
+const dropNetTableSQL = `DROP TABLE IF EXISTS %S`
 
 type netAppendRowFn = func(e *netRawEvent) error
 
