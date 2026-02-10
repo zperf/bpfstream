@@ -13,10 +13,9 @@ import (
 	"sync"
 	"text/tabwriter"
 
+	"github.com/duckdb/duckdb-go/v2"
 	"github.com/kr/logfmt"
-	"github.com/marcboeker/go-duckdb/v2"
 	"github.com/minio/simdjson-go"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v3"
 )
@@ -57,16 +56,16 @@ func (e *ProcCountEvent) Fill(el *simdjson.Element) error {
 	var rootEl *simdjson.Element
 	rootEl, err = el.Iter.FindElement(rootEl, "@")
 	if err != nil {
-		return errors.Wrap(err, "failed to find '@' element")
+		return fmt.Errorf("failed to find '@' element: %w", err)
 	}
 	var obj *simdjson.Object
 	obj, err = rootEl.Iter.Object(obj)
 	if err != nil {
-		return errors.Wrap(err, "failed to get object from '@' element")
+		return fmt.Errorf("failed to get object from '@' element: %w", err)
 	}
 	elements, err := obj.Parse(nil)
 	if err != nil {
-		return errors.Wrap(err, "failed to parse object elements")
+		return fmt.Errorf("failed to parse object elements: %w", err)
 	}
 	for _, m := range elements.Elements {
 		var value int64
@@ -159,7 +158,7 @@ var procCountCmd = &cli.Command{
 		} else {
 			f, err := os.Open(input)
 			if err != nil {
-				return errors.Wrap(err, "open input")
+				return fmt.Errorf("open input: %w", err)
 			}
 			defer func() { _ = f.Close() }()
 			r = f
@@ -181,7 +180,7 @@ var procCountCmd = &cli.Command{
 			case "map":
 				var event ProcCountEvent
 				if err := event.Fill(data); err != nil {
-					return errors.Wrap(err, "failed to fill event from map data")
+					return fmt.Errorf("failed to fill event from map data: %w", err)
 				}
 				intervalCount++
 				totalEvent.Add(&event)
@@ -227,7 +226,7 @@ var procRawEventPool = sync.Pool{
 	},
 }
 
-var ErrUnknownProcField = errors.New("unknown proc field")
+var ErrUnknownProcField = fmt.Errorf("unknown proc field")
 
 func (e *procRawEvent) HandleLogfmt(key []byte, val []byte) (err error) {
 	k := string(key)
@@ -265,7 +264,7 @@ const createProcTableSQL = `CREATE TABLE IF NOT EXISTS %s (
 	Cmdline STRING,
 	ExitCode BIGINT)`
 
-const dropProcTableSQL = `DROP TABLE IF EXISTS %s`
+const dropProcTableSQL = `DROP TABLE IF EXISTS `
 
 type procAppendRowFn = func(e *procRawEvent) error
 
@@ -276,14 +275,14 @@ func procJSONParseThenAppend(r io.Reader, appendRow procAppendRowFn) error {
 		case "printf":
 			buf, err := data.Iter.StringBytes()
 			if err != nil {
-				return errors.Wrap(err, "failed to get 'printf' data as string")
+				return fmt.Errorf("failed to get 'printf' data as string: %w", err)
 			}
 			e := procRawEventPool.Get().(*procRawEvent)
 			*e = procRawEvent{}
 			err = logfmt.Unmarshal(buf, e)
 			if err != nil {
 				procRawEventPool.Put(e)
-				return errors.Wrap(err, "failed to unmarshal logfmt data")
+				return fmt.Errorf("failed to unmarshal logfmt data: %w", err)
 			}
 			err = appendRow(e)
 			procRawEventPool.Put(e)
@@ -333,7 +332,7 @@ var procRawCmd = &cli.Command{
 		db := sql.OpenDB(connector)
 		defer func() { _ = db.Close() }()
 
-		_, err = db.Exec(fmt.Sprintf(dropProcTableSQL, tableName))
+		_, err = db.Exec(dropProcTableSQL + tableName)
 		if err != nil {
 			return err
 		}
@@ -356,7 +355,7 @@ var procRawCmd = &cli.Command{
 		} else {
 			f, err := os.Open(input)
 			if err != nil {
-				return errors.Wrap(err, "open input")
+				return fmt.Errorf("open input: %w", err)
 			}
 			defer func() { _ = f.Close() }()
 			r = f

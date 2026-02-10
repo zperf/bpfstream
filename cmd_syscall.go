@@ -14,10 +14,9 @@ import (
 	"sync"
 	"text/tabwriter"
 
+	"github.com/duckdb/duckdb-go/v2"
 	"github.com/kr/logfmt"
-	"github.com/marcboeker/go-duckdb/v2"
 	"github.com/minio/simdjson-go"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v3"
 )
@@ -63,16 +62,16 @@ func (e *SyscallCountEvent) Fill(el *simdjson.Element) error {
 	var rootEl *simdjson.Element
 	rootEl, err = el.Iter.FindElement(rootEl, "@")
 	if err != nil {
-		return errors.Wrap(err, "failed to find '@' element")
+		return fmt.Errorf("failed to find '@' element: %w", err)
 	}
 	var obj *simdjson.Object
 	obj, err = rootEl.Iter.Object(obj)
 	if err != nil {
-		return errors.Wrap(err, "failed to get object from '@' element")
+		return fmt.Errorf("failed to get object from '@' element: %w", err)
 	}
 	elements, err := obj.Parse(nil)
 	if err != nil {
-		return errors.Wrap(err, "failed to parse object elements")
+		return fmt.Errorf("failed to parse object elements: %w", err)
 	}
 	for _, m := range elements.Elements {
 		var value int64
@@ -164,7 +163,7 @@ var syscallCountCmd = &cli.Command{
 		} else {
 			f, err := os.Open(input)
 			if err != nil {
-				return errors.Wrap(err, "open input")
+				return fmt.Errorf("open input: %w", err)
 			}
 			defer func() { _ = f.Close() }()
 			r = f
@@ -186,7 +185,7 @@ var syscallCountCmd = &cli.Command{
 			case "map":
 				event := NewSyscallCountEvent()
 				if err := event.Fill(data); err != nil {
-					return errors.Wrap(err, "failed to fill event from map data")
+					return fmt.Errorf("failed to fill event from map data: %w", err)
 				}
 				intervalCount++
 				totalEvent.Add(event)
@@ -237,7 +236,7 @@ var syscallRawEventPool = sync.Pool{
 	},
 }
 
-var ErrUnknownSyscallField = errors.New("unknown syscall field")
+var ErrUnknownSyscallField = fmt.Errorf("unknown syscall field")
 
 func (e *syscallRawEvent) HandleLogfmt(key []byte, val []byte) (err error) {
 	k := string(key)
@@ -290,7 +289,7 @@ const createSyscallTableSQL = `CREATE TABLE IF NOT EXISTS %s (
 	Arg5 UBIGINT,
 	ReturnValue BIGINT)`
 
-const dropSyscallTableSQL = `DROP TABLE IF EXISTS %s`
+const dropSyscallTableSQL = `DROP TABLE IF EXISTS `
 
 type syscallAppendRowFn = func(e *syscallRawEvent) error
 
@@ -301,14 +300,14 @@ func syscallJSONParseThenAppend(r io.Reader, appendRow syscallAppendRowFn) error
 		case "printf":
 			buf, err := data.Iter.StringBytes()
 			if err != nil {
-				return errors.Wrap(err, "failed to get 'printf' data as string")
+				return fmt.Errorf("failed to get 'printf' data as string: %w", err)
 			}
 			e := syscallRawEventPool.Get().(*syscallRawEvent)
 			*e = syscallRawEvent{}
 			err = logfmt.Unmarshal(buf, e)
 			if err != nil {
 				syscallRawEventPool.Put(e)
-				return errors.Wrap(err, "failed to unmarshal logfmt data")
+				return fmt.Errorf("failed to unmarshal logfmt data: %w", err)
 			}
 			err = appendRow(e)
 			syscallRawEventPool.Put(e)
@@ -358,7 +357,7 @@ var syscallRawCmd = &cli.Command{
 		db := sql.OpenDB(connector)
 		defer func() { _ = db.Close() }()
 
-		_, err = db.Exec(fmt.Sprintf(dropSyscallTableSQL, tableName))
+		_, err = db.Exec(dropSyscallTableSQL + tableName)
 		if err != nil {
 			return err
 		}
@@ -381,7 +380,7 @@ var syscallRawCmd = &cli.Command{
 		} else {
 			f, err := os.Open(input)
 			if err != nil {
-				return errors.Wrap(err, "open input")
+				return fmt.Errorf("open input: %w", err)
 			}
 			defer func() { _ = f.Close() }()
 			r = f

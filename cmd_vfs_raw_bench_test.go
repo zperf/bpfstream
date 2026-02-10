@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/marcboeker/go-duckdb/v2"
+	"github.com/duckdb/duckdb-go/v2"
 	"github.com/negrel/assert"
 	"github.com/pierrec/lz4/v4"
 	"github.com/rs/zerolog/log"
