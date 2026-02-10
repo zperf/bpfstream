@@ -4,17 +4,13 @@ go 1.24.4
 
 require (
 	github.com/goccy/go-json v0.10.5
-	github.com/gookit/color v1.5.3
 	github.com/kr/logfmt v0.0.0-20210122060352-19f9bcb100e6
 	github.com/marcboeker/go-duckdb/v2 v2.3.2
 	github.com/minio/simdjson-go v0.4.5
 	github.com/negrel/assert v0.5.0
-	github.com/pierrec/lz4/v4 v4.1.22
 	github.com/pkg/errors v0.9.1
 	github.com/pterm/pterm v0.12.61
 	github.com/rs/zerolog v1.34.0
-	github.com/syndtr/goleveldb v1.0.0
-	github.com/tidwall/wal v1.1.8
 	github.com/urfave/cli/v3 v3.3.8
 )
 
@@ -35,6 +31,7 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/flatbuffers v25.1.24+incompatible // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/gookit/color v1.5.3 // indirect
 	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
 	github.com/lithammer/fuzzysearch v1.1.7 // indirect

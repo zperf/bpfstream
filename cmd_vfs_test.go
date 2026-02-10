@@ -100,6 +100,10 @@ func TestEventFill(t *testing.T) {
 	// Create a wrapper structure similar to what vfs count receives
 	wrapperJSON := `{"data": {"@": {"vfs_create": 10, "vfs_open": 20, "vfs_read": 30, "vfs_readlink": 5, "vfs_readv": 3, "vfs_write": 15, "vfs_writev": 7, "vfs_fsync": 2}}}`
 	pj, err := simdjson.Parse([]byte(wrapperJSON), nil)
+	if isErrorUnsupportedPlatform(err) {
+		t.Skip()
+		return
+	}
 	if err != nil {
 		t.Fatalf("failed to parse wrapper JSON: %v", err)
 	}
@@ -134,6 +138,10 @@ func TestEventFillError(t *testing.T) {
 	// Missing '@' element
 	testJSON := `{"data": {"other_key": {"vfs_create": 10}}}`
 	pj, err := simdjson.Parse([]byte(testJSON), nil)
+	if isErrorUnsupportedPlatform(err) {
+		t.Skip()
+		return
+	}
 	if err != nil {
 		t.Fatalf("failed to parse JSON: %v", err)
 	}
@@ -159,6 +167,10 @@ func TestEventFillUnknownField(t *testing.T) {
 	// Include unknown field 'vfs_unknown'
 	testJSON := `{"data": {"@": {"vfs_create": 10, "vfs_unknown": 999}}}`
 	pj, err := simdjson.Parse([]byte(testJSON), nil)
+	if isErrorUnsupportedPlatform(err) {
+		t.Skip()
+		return
+	}
 	if err != nil {
 		t.Fatalf("failed to parse JSON: %v", err)
 	}
