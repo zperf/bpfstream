@@ -264,7 +264,7 @@ const createMemTableSQL = `CREATE TABLE IF NOT EXISTS %s (
 	Size UBIGINT,
 	Type STRING)`
 
-const dropMemTableSQL = `DROP TABLE IF EXISTS %S`
+const dropMemTableSQL = `DROP TABLE IF EXISTS `
 
 type memAppendRowFn = func(e *memRawEvent) error
 
@@ -332,7 +332,7 @@ var memRawCmd = &cli.Command{
 		db := sql.OpenDB(connector)
 		defer func() { _ = db.Close() }()
 
-		_, err = db.Exec(fmt.Sprintf(dropMemTableSQL, tableName))
+		_, err = db.Exec(dropMemTableSQL + tableName)
 		if err != nil {
 			return err
 		}

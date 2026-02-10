@@ -29,7 +29,7 @@ const createTableSql = `CREATE TABLE IF NOT EXISTS %s (
 	"Offset" UBIGINT,
 	Length UBIGINT)`
 
-const dropTableSql = `DROP TABLE IF EXISTS %S`
+const dropTableSql = `DROP TABLE IF EXISTS `
 
 type vfsEvent struct {
 	Timestamp   uint64
@@ -283,7 +283,7 @@ var vfsRawCmd = &cli.Command{
 		db := sql.OpenDB(connector)
 		defer func() { _ = db.Close() }()
 
-		_, err = db.Exec(fmt.Sprintf(dropTableSql, tableName))
+		_, err = db.Exec(dropTableSql + tableName)
 		if err != nil {
 			return err
 		}

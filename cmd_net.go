@@ -294,7 +294,7 @@ const createNetTableSQL = `CREATE TABLE IF NOT EXISTS %s (
 	Bytes UBIGINT,
 	Protocol STRING)`
 
-const dropNetTableSQL = `DROP TABLE IF EXISTS %S`
+const dropNetTableSQL = `DROP TABLE IF EXISTS `
 
 type netAppendRowFn = func(e *netRawEvent) error
 
@@ -362,7 +362,7 @@ var netRawCmd = &cli.Command{
 		db := sql.OpenDB(connector)
 		defer func() { _ = db.Close() }()
 
-		_, err = db.Exec(fmt.Sprintf(dropNetTableSQL, tableName))
+		_, err = db.Exec(dropNetTableSQL + tableName)
 		if err != nil {
 			return err
 		}

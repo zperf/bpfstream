@@ -264,7 +264,7 @@ const createProcTableSQL = `CREATE TABLE IF NOT EXISTS %s (
 	Cmdline STRING,
 	ExitCode BIGINT)`
 
-const dropProcTableSQL = `DROP TABLE IF EXISTS %S`
+const dropProcTableSQL = `DROP TABLE IF EXISTS `
 
 type procAppendRowFn = func(e *procRawEvent) error
 
@@ -332,7 +332,7 @@ var procRawCmd = &cli.Command{
 		db := sql.OpenDB(connector)
 		defer func() { _ = db.Close() }()
 
-		_, err = db.Exec(fmt.Sprintf(dropProcTableSQL, tableName))
+		_, err = db.Exec(dropProcTableSQL + tableName)
 		if err != nil {
 			return err
 		}

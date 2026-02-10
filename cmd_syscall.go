@@ -289,7 +289,7 @@ const createSyscallTableSQL = `CREATE TABLE IF NOT EXISTS %s (
 	Arg5 UBIGINT,
 	ReturnValue BIGINT)`
 
-const dropSyscallTableSQL = `DROP TABLE IF EXISTS %S`
+const dropSyscallTableSQL = `DROP TABLE IF EXISTS `
 
 type syscallAppendRowFn = func(e *syscallRawEvent) error
 
@@ -357,7 +357,7 @@ var syscallRawCmd = &cli.Command{
 		db := sql.OpenDB(connector)
 		defer func() { _ = db.Close() }()
 
-		_, err = db.Exec(fmt.Sprintf(dropSyscallTableSQL, tableName))
+		_, err = db.Exec(dropSyscallTableSQL + tableName)
 		if err != nil {
 			return err
 		}
